@@ -1,0 +1,5 @@
+[
+  {"id": 1, "nazwa": "Żółty ser", "cena": 24.99, "dostępny": true},
+  {"id": 2, "nazwa": "Chleb żytni", "cena": null, "dostępny": false},
+  {"id": 3, "nazwa": "Mąka", "kategoria": "Sypkie"}
+]
