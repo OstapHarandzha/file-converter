@@ -3,7 +3,8 @@
 Projekt 1 – Programowanie V. Aplikacja desktopowa (Python 3 + Tkinter/ttk), która konwertuje pliki
 między obsługiwanymi formatami. Logika konwersji jest oddzielona od interfejsu (rejestr konwerterów).
 
-> **Status:** Lab 3 (w trakcie) – działa CSV ↔ JSON i TXT → DOCX w trybie wiersza poleceń (bez GUI).
+> **Status:** Lab 3 – działają 4 kierunki: CSV ↔ JSON, TXT → DOCX i DOCX → PDF (LibreOffice),
+> w trybie wiersza poleceń (bez GUI).
 
 ## Wymagania
 
@@ -11,7 +12,14 @@ między obsługiwanymi formatami. Logika konwersji jest oddzielona od interfejsu
 - Biblioteki z `requirements.txt`:
   - `python-docx` – tworzenie plików DOCX (TXT → DOCX),
   - `pytest` – testy automatyczne.
-- LibreOffice – wymagany dopiero dla konwersji z grupy C
+- [LibreOffice](https://www.libreoffice.org/download/) (testowane na Windows) – program zewnętrzny
+  wymagany dla DOCX → PDF. Program jest wyszukiwany kolejno:
+  1. w zmiennej środowiskowej `LIBREOFFICE_PATH` (pełna ścieżka do `soffice`),
+  2. jako `soffice` / `libreoffice` w `PATH`,
+  3. w standardowych katalogach instalacji (Windows, macOS, Linux).
+
+  Przykład: `$env:LIBREOFFICE_PATH = "C:\Program Files\LibreOffice\program\soffice.com"`.
+  Brak programu nie blokuje pozostałych konwersji – DOCX → PDF zgłasza wtedy czytelny błąd z instrukcją.
 
 ## Instalacja
 
@@ -28,6 +36,7 @@ python -m converter --list                                   # obsługiwane konw
 python -m converter samples/osoby.csv json -o output         # CSV -> JSON
 python -m converter samples/produkty.json csv -o output      # JSON -> CSV
 python -m converter samples/notatka.txt docx -o output       # TXT -> DOCX
+python -m converter samples/dokument.docx pdf -o output      # DOCX -> PDF (LibreOffice)
 python -m converter samples/osoby.csv json -o output --overwrite
 ```
 
@@ -43,6 +52,7 @@ python -m converter samples/osoby.csv json -o output --overwrite
 | A – dane strukturalne | CSV → JSON | ✅ | Wszystkie wartości zapisywane jako tekst |
 | A – dane strukturalne | JSON → CSV | ✅ | Tylko lista płaskich obiektów (bez zagnieżdżeń) |
 | B – tekst i dokumenty | TXT → DOCX | ✅ | Tylko tekst – bez formatowania, nagłówków i list |
+| C – formaty biurowe | DOCX → PDF | ✅ | Wymaga LibreOffice; układ stron może się nieznacznie różnić od Worda |
 
 ### Semantyka CSV ↔ JSON
 
@@ -69,6 +79,18 @@ python -m converter samples/osoby.csv json -o output --overwrite
   akapit. Końce linii Windows (`\r\n`) i Unix (`\n`) są obsługiwane tak samo.
 - **Wynik:** dokument Word z domyślnym stylem, bez dodatkowego formatowania; polskie znaki bez zmian.
 
+### DOCX → PDF (LibreOffice)
+
+- Konwersję wykonuje LibreOffice w trybie bez interfejsu (`--headless --convert-to pdf`). Akapity,
+  nagłówki i podstawowe formatowanie (pogrubienie, kursywa) są zachowane; polskie znaki bez zmian.
+- Program jest uruchamiany bezpiecznie: lista argumentów (bez `shell=True`), limit czasu 120 s,
+  sprawdzany kod zakończenia i to, czy plik wynikowy powstał. Polecenie i kod zakończenia trafiają do logu.
+- LibreOffice używa osobnego profilu w katalogu tymczasowym, więc konwersja działa także wtedy,
+  gdy LibreOffice jest otwarty.
+- Kontrolowane błędy (komunikat z przyczyną i dalszym krokiem, kod wyjścia 1): brak programu,
+  nieudane uruchomienie, przekroczenie czasu, kod zakończenia różny od 0, brak pliku wynikowego
+  (np. uszkodzony plik DOCX).
+
 ### Istniejący plik wynikowy
 
 Dotyczy wszystkich konwersji: istniejący plik nigdy nie jest nadpisywany bez zgody. Domyślnie wynik
@@ -90,6 +112,7 @@ converter/
   registry.py     # rejestr, ConversionRequest, walidacja, execute(), model błędów
   data.py         # grupa A: CSV <-> JSON
   documents.py    # grupa B: TXT -> DOCX
+  office.py       # grupa C: DOCX -> PDF przez LibreOffice (subprocess)
   __main__.py     # tryb wiersza poleceń
   app_logging.py  # logowanie do converter.log
 samples/          # dane testowe
@@ -100,6 +123,8 @@ tests/            # testy pytest
 
 - Biblioteka standardowa Pythona: `csv`, `json`, `pathlib`, `argparse`, `logging`, `tempfile`.
 - [python-docx](https://python-docx.readthedocs.io/) – tworzenie plików DOCX.
+- [LibreOffice](https://help.libreoffice.org/latest/en-US/text/shared/guide/start_parameters.html) –
+  konwersja DOCX → PDF w trybie headless; uruchamiany przez moduł `subprocess`.
 - [pytest](https://docs.pytest.org/) – testy automatyczne.
 - Wzorzec rejestru konwerterów – na podstawie kodu inspiracyjnego z instrukcji projektu.
 - Narzędzia AI: GitHub Copilot (asystent AI w VS Code) – pomoc przy projektowaniu struktury,
