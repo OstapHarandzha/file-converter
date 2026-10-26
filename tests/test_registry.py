@@ -17,6 +17,7 @@ SAMPLES = Path(__file__).resolve().parent.parent / "samples"
 def test_available_targets_depend_on_extension():
     assert available_targets(Path("a.csv")) == [".json"]
     assert available_targets(Path("A.JSON")) == [".csv"]
+    assert available_targets(Path("notatka.txt")) == [".docx"]
     assert available_targets(Path("a.xyz")) == []
     assert available_targets(Path("no_extension")) == []
 

@@ -3,13 +3,15 @@
 Projekt 1 – Programowanie V. Aplikacja desktopowa (Python 3 + Tkinter/ttk), która konwertuje pliki
 między obsługiwanymi formatami. Logika konwersji jest oddzielona od interfejsu (rejestr konwerterów).
 
-> **Status:** Lab 2 – działa CSV ↔ JSON w trybie wiersza poleceń (bez GUI).
+> **Status:** Lab 3 (w trakcie) – działa CSV ↔ JSON i TXT → DOCX w trybie wiersza poleceń (bez GUI).
 
 ## Wymagania
 
 - Python 3.10+ (testowane na 3.13, Windows)
-- Biblioteki z `requirements.txt`
-- LibreOffice – wymagany dopiero dla konwersji z grupy C (Lab 3)
+- Biblioteki z `requirements.txt`:
+  - `python-docx` – tworzenie plików DOCX (TXT → DOCX),
+  - `pytest` – testy automatyczne.
+- LibreOffice – wymagany dopiero dla konwersji z grupy C
 
 ## Instalacja
 
@@ -25,6 +27,7 @@ pip install -r requirements.txt
 python -m converter --list                                   # obsługiwane konwersje
 python -m converter samples/osoby.csv json -o output         # CSV -> JSON
 python -m converter samples/produkty.json csv -o output      # JSON -> CSV
+python -m converter samples/notatka.txt docx -o output       # TXT -> DOCX
 python -m converter samples/osoby.csv json -o output --overwrite
 ```
 
@@ -39,6 +42,7 @@ python -m converter samples/osoby.csv json -o output --overwrite
 |---|---|---|---|
 | A – dane strukturalne | CSV → JSON | ✅ | Wszystkie wartości zapisywane jako tekst |
 | A – dane strukturalne | JSON → CSV | ✅ | Tylko lista płaskich obiektów (bez zagnieżdżeń) |
+| B – tekst i dokumenty | TXT → DOCX | ✅ | Tylko tekst – bez formatowania, nagłówków i list |
 
 ### Semantyka CSV ↔ JSON
 
@@ -57,6 +61,20 @@ python -m converter samples/osoby.csv json -o output --overwrite
   pusta komórka; `true`/`false` → `true`/`false`. Wynik: separator `,`, UTF-8 z BOM (Excel poprawnie
   wyświetla polskie znaki).
 
+### Semantyka TXT → DOCX
+
+- **Kodowanie wejścia:** UTF-8 (z BOM lub bez). Inne kodowanie, pusty plik lub znaki sterujące
+  (np. plik binarny) → czytelny błąd.
+- **Akapity:** każda linia pliku tekstowego to jeden akapit, w tej samej kolejności; pusta linia to pusty
+  akapit. Końce linii Windows (`\r\n`) i Unix (`\n`) są obsługiwane tak samo.
+- **Wynik:** dokument Word z domyślnym stylem, bez dodatkowego formatowania; polskie znaki bez zmian.
+
+### Istniejący plik wynikowy
+
+Dotyczy wszystkich konwersji: istniejący plik nigdy nie jest nadpisywany bez zgody. Domyślnie wynik
+dostaje nazwę `nazwa (1).ext`, `nazwa (2).ext`, ...; opcja `--overwrite` zastępuje istniejący plik.
+Wynik jest zapisywany do pliku tymczasowego i podmieniany dopiero po udanej konwersji.
+
 ## Testy
 
 ```powershell
@@ -71,6 +89,7 @@ Dane przykładowe i oczekiwane wyniki: [samples/README.md](samples/README.md).
 converter/
   registry.py     # rejestr, ConversionRequest, walidacja, execute(), model błędów
   data.py         # grupa A: CSV <-> JSON
+  documents.py    # grupa B: TXT -> DOCX
   __main__.py     # tryb wiersza poleceń
   app_logging.py  # logowanie do converter.log
 samples/          # dane testowe
@@ -80,6 +99,7 @@ tests/            # testy pytest
 ## Źródła, biblioteki i narzędzia AI
 
 - Biblioteka standardowa Pythona: `csv`, `json`, `pathlib`, `argparse`, `logging`, `tempfile`.
+- [python-docx](https://python-docx.readthedocs.io/) – tworzenie plików DOCX.
 - [pytest](https://docs.pytest.org/) – testy automatyczne.
 - Wzorzec rejestru konwerterów – na podstawie kodu inspiracyjnego z instrukcji projektu.
 - Narzędzia AI: GitHub Copilot (asystent AI w VS Code) – pomoc przy projektowaniu struktury,

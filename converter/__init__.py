@@ -3,6 +3,7 @@
 Importing this package registers all available converters.
 """
 from . import data  # noqa: F401  (registers CSV <-> JSON)
+from . import documents  # noqa: F401  (registers TXT -> DOCX)
 from .registry import (
     REGISTRY,
     ConversionError,
