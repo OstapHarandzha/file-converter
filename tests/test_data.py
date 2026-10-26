@@ -77,6 +77,7 @@ def test_broken_json_gives_controlled_error_with_position(tmp_path):
         ('[{"a": {"b": 1}}]', "zagnieżdżone"),
         ("", "pusty"),
     ],
+    ids=["top-level-object", "empty-list", "items-not-objects", "nested-values", "empty-file"],
 )
 def test_json_with_unsupported_structure_is_rejected(tmp_path, content, fragment):
     source = tmp_path / "in.json"
@@ -93,6 +94,7 @@ def test_json_with_unsupported_structure_is_rejected(tmp_path, content, fragment
         ("a,a\n1,2\n", "Powtórzone"),
         ("a,\n1,2\n", "pustą nazwę"),
     ],
+    ids=["empty-file", "too-many-fields", "duplicate-header", "empty-column-name"],
 )
 def test_invalid_csv_is_rejected(tmp_path, content, fragment):
     source = tmp_path / "in.csv"

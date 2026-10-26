@@ -35,6 +35,7 @@ def test_validate_accepts_correct_request(tmp_path):
         ("osoby.csv", ".json", None, OutputError),
         ("osoby.csv", ".json", "missing", OutputError),
     ],
+    ids=["no-source", "missing-file", "no-format", "unsupported-pair", "no-output-dir", "missing-output-dir"],
 )
 def test_validate_rejects_invalid_requests(tmp_path, source, target_format, output_dir, error):
     output_dirs = {"existing": tmp_path, "missing": tmp_path / "missing", None: None}
