@@ -6,6 +6,7 @@ The GUI only collects the user's choices and talks to the registry
 import queue
 import threading
 import tkinter as tk
+from dataclasses import replace
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
@@ -109,6 +110,21 @@ class ConverterApp(ttk.Frame):
             target_format=self.format_var.get(),
             output_dir=Path(self.output_var.get()),
         )
+        if request.default_target.exists():
+            answer = messagebox.askyesnocancel(
+                "Plik już istnieje",
+                f"Plik {request.default_target.name} już istnieje w katalogu zapisu.\n\n"
+                "Tak – nadpisz istniejący plik\n"
+                "Nie – zapisz pod nową nazwą, np. nazwa (1)\n"
+                "Anuluj – nie wykonuj konwersji",
+                icon="warning",
+                parent=self.root,
+            )
+            if answer is None:
+                self.status_var.set("Konwersja anulowana.")
+                return
+            request = replace(request, overwrite=answer)
+
         self._set_busy(True)
         self.status_var.set(f"Konwertowanie: {request.source.name} -> {request.target_format}…")
         threading.Thread(target=self._worker, args=(request,), daemon=True).start()

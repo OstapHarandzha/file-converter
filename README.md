@@ -3,12 +3,13 @@
 Projekt 1 – Programowanie V. Aplikacja desktopowa (Python 3 + Tkinter/ttk), która konwertuje pliki
 między obsługiwanymi formatami. Logika konwersji jest oddzielona od interfejsu (rejestr konwerterów).
 
-> **Status:** Lab 3 – działają 4 kierunki: CSV ↔ JSON, TXT → DOCX i DOCX → PDF (LibreOffice),
-> w trybie wiersza poleceń (bez GUI).
+> **Status:** Lab 4 – interfejs graficzny (Tkinter/ttk) połączony z rejestrem konwerterów;
+> działają 4 kierunki: CSV ↔ JSON, TXT → DOCX i DOCX → PDF (LibreOffice). Dostępny także tryb wiersza poleceń.
 
 ## Wymagania
 
-- Python 3.10+ (testowane na 3.13, Windows)
+- Python 3.10+ (testowane na 3.13, Windows) z modułem Tkinter (instalowany razem z Pythonem
+  z python.org; na Linuksie pakiet `python3-tk`)
 - Biblioteki z `requirements.txt`:
   - `python-docx` – tworzenie plików DOCX (TXT → DOCX),
   - `pytest` – testy automatyczne.
@@ -29,7 +30,24 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-## Uruchomienie (tryb bez GUI)
+## Uruchomienie – interfejs graficzny (GUI)
+
+```powershell
+python -m converter
+```
+
+1. **Plik wejściowy → Wybierz…** – wskaż plik. Katalog zapisu ustawia się na katalog pliku (można go zmienić).
+2. **Format docelowy** – lista zawiera wyłącznie formaty dostępne dla rozszerzenia pliku (pobierane
+   z rejestru konwerterów). Dla nieobsługiwanego pliku lista jest pusta i zablokowana, a status podaje
+   obsługiwane rozszerzenia.
+3. **Konwertuj** – przycisk jest aktywny tylko przy kompletnym i dozwolonym wyborze. Konwersja działa
+   w wątku roboczym: okno nie zamarza, przyciski są zablokowane, widoczny jest pasek postępu.
+4. Wynik: okno z komunikatem i ścieżką pliku albo okno błędu z przyczyną i dalszym krokiem.
+
+Jeśli plik wynikowy już istnieje, GUI pyta: **Tak** – nadpisz, **Nie** – zapisz jako `nazwa (1).ext`,
+**Anuluj** – nie wykonuj konwersji.
+
+## Uruchomienie – tryb wiersza poleceń
 
 ```powershell
 python -m converter --list                                   # obsługiwane konwersje
@@ -93,8 +111,9 @@ python -m converter samples/osoby.csv json -o output --overwrite
 
 ### Istniejący plik wynikowy
 
-Dotyczy wszystkich konwersji: istniejący plik nigdy nie jest nadpisywany bez zgody. Domyślnie wynik
-dostaje nazwę `nazwa (1).ext`, `nazwa (2).ext`, ...; opcja `--overwrite` zastępuje istniejący plik.
+Dotyczy wszystkich konwersji: istniejący plik nigdy nie jest nadpisywany bez zgody. W GUI użytkownik
+wybiera nadpisanie, nową nazwę albo anulowanie. W wierszu poleceń wynik domyślnie dostaje nazwę
+`nazwa (1).ext`, `nazwa (2).ext`, ...; opcja `--overwrite` zastępuje istniejący plik.
 Wynik jest zapisywany do pliku tymczasowego i podmieniany dopiero po udanej konwersji.
 
 ## Testy
@@ -105,6 +124,17 @@ python -m pytest -v
 
 Dane przykładowe i oczekiwane wyniki: [samples/README.md](samples/README.md).
 
+### Testy ręczne GUI
+
+| Przypadek | Kroki | Oczekiwany rezultat |
+|---|---|---|
+| Poprawna konwersja | `samples/osoby.csv` → `.json` → Konwertuj | Komunikat „Konwersja zakończona” ze ścieżką; plik otwiera się z polskimi znakami |
+| Nieobsługiwana para | Wybierz plik `.pdf` lub `.png` | Lista formatów pusta i zablokowana, przycisk nieaktywny, status z listą obsługiwanych rozszerzeń |
+| Plik już istnieje | Powtórz konwersję do tego samego katalogu | Pytanie Tak/Nie/Anuluj: nadpisanie / `nazwa (1).ext` / brak zmian |
+| Uszkodzony plik | `samples/uszkodzony.json` → `.csv` | Okno błędu z przyczyną (wiersz, kolumna) i podpowiedzią; aplikacja działa dalej |
+| Dłuższa konwersja | `samples/dokument.docx` → `.pdf` | Pasek postępu, zablokowane przyciski, okno można przesuwać |
+| Brak LibreOffice | `$env:LIBREOFFICE_PATH="C:\nie\ma\soffice.exe"`, potem DOCX → PDF | Okno błędu z instrukcją naprawy |
+
 ## Struktura projektu
 
 ```
@@ -113,7 +143,8 @@ converter/
   data.py         # grupa A: CSV <-> JSON
   documents.py    # grupa B: TXT -> DOCX
   office.py       # grupa C: DOCX -> PDF przez LibreOffice (subprocess)
-  __main__.py     # tryb wiersza poleceń
+  gui.py          # interfejs Tkinter/ttk (tylko wybór i wywołanie rejestru, wątek roboczy)
+  __main__.py     # start: bez argumentów GUI, z argumentami tryb wiersza poleceń
   app_logging.py  # logowanie do converter.log
 samples/          # dane testowe
 tests/            # testy pytest
@@ -121,7 +152,8 @@ tests/            # testy pytest
 
 ## Źródła, biblioteki i narzędzia AI
 
-- Biblioteka standardowa Pythona: `csv`, `json`, `pathlib`, `argparse`, `logging`, `tempfile`.
+- Biblioteka standardowa Pythona: `csv`, `json`, `pathlib`, `argparse`, `logging`, `tempfile`,
+  `tkinter`/`ttk` (GUI, `filedialog`, `messagebox`), `threading` i `queue` (konwersja w tle).
 - [python-docx](https://python-docx.readthedocs.io/) – tworzenie plików DOCX.
 - [LibreOffice](https://help.libreoffice.org/latest/en-US/text/shared/guide/start_parameters.html) –
   konwersja DOCX → PDF w trybie headless; uruchamiany przez moduł `subprocess`.
