@@ -3,12 +3,16 @@
 The GUI only collects the user's choices and talks to the registry
 (available_targets, ConversionRequest, execute) - it contains no conversion logic.
 """
+import queue
+import threading
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, ttk
+from tkinter import filedialog, messagebox, ttk
 
-from . import available_targets, supported_pairs
-from .app_logging import setup_logging
+from . import ConversionError, ConversionRequest, available_targets, execute, supported_pairs
+from .app_logging import LOG_FILE, setup_logging
+
+POLL_MS = 100
 
 
 class ConverterApp(ttk.Frame):
@@ -19,6 +23,7 @@ class ConverterApp(ttk.Frame):
         self.output_var = tk.StringVar()
         self.format_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Wybierz plik wejściowy.")
+        self.results: queue.Queue = queue.Queue()
 
         self._build()
         for var in (self.source_var, self.output_var, self.format_var):
@@ -33,21 +38,27 @@ class ConverterApp(ttk.Frame):
 
         ttk.Label(self, text="Plik wejściowy:").grid(row=0, column=0, sticky="w", pady=4)
         ttk.Entry(self, textvariable=self.source_var, state="readonly").grid(row=0, column=1, sticky="ew", padx=6)
-        ttk.Button(self, text="Wybierz…", command=self._choose_source).grid(row=0, column=2)
+        self.source_button = ttk.Button(self, text="Wybierz…", command=self._choose_source)
+        self.source_button.grid(row=0, column=2)
 
         ttk.Label(self, text="Katalog zapisu:").grid(row=1, column=0, sticky="w", pady=4)
         ttk.Entry(self, textvariable=self.output_var, state="readonly").grid(row=1, column=1, sticky="ew", padx=6)
-        ttk.Button(self, text="Wybierz…", command=self._choose_output).grid(row=1, column=2)
+        self.output_button = ttk.Button(self, text="Wybierz…", command=self._choose_output)
+        self.output_button.grid(row=1, column=2)
 
         ttk.Label(self, text="Format docelowy:").grid(row=2, column=0, sticky="w", pady=4)
         self.format_box = ttk.Combobox(self, textvariable=self.format_var, state="disabled", width=12)
         self.format_box.grid(row=2, column=1, sticky="w", padx=6)
 
-        self.convert_button = ttk.Button(self, text="Konwertuj")
+        self.convert_button = ttk.Button(self, text="Konwertuj", command=self._convert)
         self.convert_button.grid(row=3, column=0, columnspan=3, pady=(12, 6))
 
+        self.progress = ttk.Progressbar(self, mode="indeterminate")
+        self.progress.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 6))
+        self.progress.grid_remove()
+
         ttk.Label(self, textvariable=self.status_var, wraplength=480, justify="left").grid(
-            row=4, column=0, columnspan=3, sticky="w"
+            row=5, column=0, columnspan=3, sticky="w"
         )
 
     def _choose_source(self) -> None:
@@ -91,6 +102,59 @@ class ConverterApp(ttk.Frame):
             ready = True
         self.status_var.set(message)
         self.convert_button.configure(state="normal" if ready else "disabled")
+
+    def _convert(self) -> None:
+        request = ConversionRequest(
+            source=Path(self.source_var.get()),
+            target_format=self.format_var.get(),
+            output_dir=Path(self.output_var.get()),
+        )
+        self._set_busy(True)
+        self.status_var.set(f"Konwertowanie: {request.source.name} -> {request.target_format}…")
+        threading.Thread(target=self._worker, args=(request,), daemon=True).start()
+        self.after(POLL_MS, self._poll)
+
+    def _worker(self, request: ConversionRequest) -> None:
+        """Runs in a background thread - must not touch any widget."""
+        try:
+            self.results.put((True, execute(request)))
+        except Exception as error:
+            self.results.put((False, error))
+
+    def _poll(self) -> None:
+        try:
+            ok, value = self.results.get_nowait()
+        except queue.Empty:
+            self.after(POLL_MS, self._poll)
+            return
+        self._set_busy(False)
+        if ok:
+            self.status_var.set(f"Zapisano: {value}")
+            messagebox.showinfo("Konwersja zakończona", f"Zapisano plik:\n{value}", parent=self.root)
+        elif isinstance(value, ConversionError):
+            self.status_var.set(f"Błąd: {value.message}")
+            messagebox.showerror("Błąd konwersji", str(value), parent=self.root)
+        else:
+            self.status_var.set(f"Nieoczekiwany błąd: {value}")
+            messagebox.showerror(
+                "Nieoczekiwany błąd", f"{value}\n\nSzczegóły w pliku {LOG_FILE}", parent=self.root
+            )
+
+    def _set_busy(self, busy: bool) -> None:
+        """Lock the controls while a conversion runs so the user cannot start a second one."""
+        state = "disabled" if busy else "normal"
+        self.source_button.configure(state=state)
+        self.output_button.configure(state=state)
+        if busy:
+            self.format_box.configure(state="disabled")
+            self.convert_button.configure(state="disabled")
+            self.progress.grid()
+            self.progress.start(10)
+        else:
+            self.progress.stop()
+            self.progress.grid_remove()
+            self.format_box.configure(state="readonly" if self.format_box["values"] else "disabled")
+            self._update_state()
 
 
 def run() -> None:
