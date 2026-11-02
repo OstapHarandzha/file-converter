@@ -1,6 +1,7 @@
-"""Command-line mode (no GUI).
+"""Command-line mode; without arguments the GUI is opened.
 
 Examples:
+    python -m converter                      # GUI
     python -m converter --list
     python -m converter samples/osoby.csv json -o output
     python -m converter samples/produkty.json csv -o output --overwrite
@@ -14,6 +15,14 @@ from .app_logging import LOG_FILE, setup_logging
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:
+        from .gui import run
+
+        run()
+        return 0
+
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(errors="replace")  # consoles without UTF-8 must not crash
     setup_logging()
