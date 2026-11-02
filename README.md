@@ -44,8 +44,9 @@ python -m converter
    w wątku roboczym: okno nie zamarza, przyciski są zablokowane, widoczny jest pasek postępu.
 4. Wynik: okno z komunikatem i ścieżką pliku albo okno błędu z przyczyną i dalszym krokiem.
 
-Jeśli plik wynikowy już istnieje, GUI pyta: **Tak** – nadpisz, **Nie** – zapisz jako `nazwa (1).ext`,
-**Anuluj** – nie wykonuj konwersji.
+Jeśli plik wynikowy już istnieje, GUI pyta „Czy chcesz go nadpisać?”: **Tak, nadpisz** – zastąp plik,
+**Nie, zapisz nowy plik** – zapisz jako `nazwa (1).ext`, **Anuluj** – nie wykonuj konwersji
+(także klawisz Esc lub zamknięcie okna). Domyślny przycisk (Enter) to bezpieczny zapis nowego pliku.
 
 ## Uruchomienie – tryb wiersza poleceń
 
@@ -130,7 +131,7 @@ Dane przykładowe i oczekiwane wyniki: [samples/README.md](samples/README.md).
 |---|---|---|
 | Poprawna konwersja | `samples/osoby.csv` → `.json` → Konwertuj | Komunikat „Konwersja zakończona” ze ścieżką; plik otwiera się z polskimi znakami |
 | Nieobsługiwana para | Wybierz plik `.pdf` lub `.png` | Lista formatów pusta i zablokowana, przycisk nieaktywny, status z listą obsługiwanych rozszerzeń |
-| Plik już istnieje | Powtórz konwersję do tego samego katalogu | Pytanie Tak/Nie/Anuluj: nadpisanie / `nazwa (1).ext` / brak zmian |
+| Plik już istnieje | Powtórz konwersję do tego samego katalogu | Pytanie „Czy chcesz go nadpisać?”: Tak, nadpisz / Nie, zapisz nowy plik (`nazwa (1).ext`) / Anuluj (brak zmian) |
 | Uszkodzony plik | `samples/uszkodzony.json` → `.csv` | Okno błędu z przyczyną (wiersz, kolumna) i podpowiedzią; aplikacja działa dalej |
 | Dłuższa konwersja | `samples/dokument.docx` → `.pdf` | Pasek postępu, zablokowane przyciski, okno można przesuwać |
 | Brak LibreOffice | `$env:LIBREOFFICE_PATH="C:\nie\ma\soffice.exe"`, potem DOCX → PDF | Okno błędu z instrukcją naprawy |

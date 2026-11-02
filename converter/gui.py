@@ -111,15 +111,7 @@ class ConverterApp(ttk.Frame):
             output_dir=Path(self.output_var.get()),
         )
         if request.default_target.exists():
-            answer = messagebox.askyesnocancel(
-                "Plik już istnieje",
-                f"Plik {request.default_target.name} już istnieje w katalogu zapisu.\n\n"
-                "Tak – nadpisz istniejący plik\n"
-                "Nie – zapisz pod nową nazwą, np. nazwa (1)\n"
-                "Anuluj – nie wykonuj konwersji",
-                icon="warning",
-                parent=self.root,
-            )
+            answer = ask_overwrite(self.root, request.default_target)
             if answer is None:
                 self.status_var.set("Konwersja anulowana.")
                 return
@@ -171,6 +163,47 @@ class ConverterApp(ttk.Frame):
             self.progress.grid_remove()
             self.format_box.configure(state="readonly" if self.format_box["values"] else "disabled")
             self._update_state()
+
+
+def ask_overwrite(parent: tk.Tk, target: Path) -> bool | None:
+    """Polish 'file exists' dialog: True = overwrite, False = save under a new name, None = cancel.
+
+    A custom window is used because native message boxes label their buttons in the OS language.
+    """
+    dialog = tk.Toplevel(parent)
+    dialog.title("Plik już istnieje")
+    dialog.resizable(False, False)
+    dialog.transient(parent)
+    answer: list[bool | None] = [None]
+
+    def choose(value: bool | None) -> None:
+        answer[0] = value
+        dialog.destroy()
+
+    frame = ttk.Frame(dialog, padding=16)
+    frame.grid()
+    ttk.Label(
+        frame,
+        text=f"Plik {target.name} już istnieje w katalogu:\n{target.parent}\n\nCzy chcesz go nadpisać?",
+        wraplength=420,
+        justify="left",
+    ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 14))
+    ttk.Button(frame, text="Tak, nadpisz", command=lambda: choose(True)).grid(row=1, column=0, padx=4)
+    new_button = ttk.Button(frame, text="Nie, zapisz nowy plik", command=lambda: choose(False))
+    new_button.grid(row=1, column=1, padx=4)
+    ttk.Button(frame, text="Anuluj", command=lambda: choose(None)).grid(row=1, column=2, padx=4)
+
+    dialog.protocol("WM_DELETE_WINDOW", lambda: choose(None))
+    dialog.bind("<Escape>", lambda _: choose(None))
+    dialog.update_idletasks()
+    x = parent.winfo_rootx() + (parent.winfo_width() - dialog.winfo_width()) // 2
+    y = parent.winfo_rooty() + (parent.winfo_height() - dialog.winfo_height()) // 2
+    dialog.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+    new_button.focus_set()  # the safe choice is the default for Enter/Space
+    dialog.bind("<Return>", lambda _: getattr(dialog.focus_get(), "invoke", lambda: None)())
+    dialog.grab_set()
+    parent.wait_window(dialog)
+    return answer[0]
 
 
 def run() -> None:
