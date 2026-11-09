@@ -1,10 +1,14 @@
-"""Group B - text documents: TXT -> DOCX (python-docx).
+"""Group B - text documents: TXT <-> DOCX (python-docx).
 
 Semantics (also described in README):
-* Input encoding: UTF-8 (with or without BOM); an empty file is an error.
-* Every line of the text becomes one paragraph, in the same order;
+* TXT input encoding: UTF-8 (with or without BOM); an empty file is an error.
+* TXT -> DOCX: every line of the text becomes one paragraph, in the same order;
   an empty line becomes an empty paragraph. No formatting is added.
+* DOCX -> TXT: paragraphs and tables in document order; every paragraph is one
+  line, every table row is one line with cells separated by a tab.
+  Formatting, images, headers/footers and footnotes are dropped. Output: UTF-8.
 """
+import zipfile
 from pathlib import Path
 
 from .data import read_utf8
@@ -39,3 +43,25 @@ def txt_to_docx(source: Path, target: Path) -> None:
             "Sprawdź, czy to na pewno plik tekstowy, i usuń z niego znaki sterujące.",
         ) from error
     document.save(target)
+
+
+@converter(".docx", ".txt")
+def docx_to_txt(source: Path, target: Path) -> None:
+    docx = load_docx()
+    try:
+        document = docx.Document(source)
+    # not a ZIP at all / a ZIP that is not a Word document / a damaged ZIP
+    except (docx.opc.exceptions.PackageNotFoundError, KeyError, zipfile.BadZipFile) as error:
+        raise InvalidInputError(
+            f"Plik {source.name} nie jest poprawnym dokumentem DOCX (plik uszkodzony lub w innym formacie).",
+            "Otwórz plik w Wordzie lub LibreOffice i zapisz go ponownie jako DOCX.",
+        ) from error
+
+    lines = []
+    for block in document.iter_inner_content():  # paragraphs and tables in document order
+        if isinstance(block, docx.table.Table):
+            for row in block.rows:
+                lines.append("\t".join(cell.text for cell in row.cells))
+        else:
+            lines.append(block.text)
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -1,0 +1,23 @@
+[
+  {
+    "imię": "Zażółć",
+    "nazwisko": "Gęślą-Jaźń",
+    "miasto": "Łódź",
+    "e-mail": "zazolc@example.pl",
+    "uwagi": ""
+  },
+  {
+    "imię": "Łukasz",
+    "nazwisko": "Wiśniewski",
+    "miasto": "Kraków",
+    "e-mail": "",
+    "uwagi": "Lubi kawę, herbatę i żurek"
+  },
+  {
+    "imię": "Anna",
+    "nazwisko": "Nowak",
+    "miasto": "Gdańsk",
+    "e-mail": "anna@example.pl",
+    "uwagi": "Powiedziała: \"Dzień dobry\""
+  }
+]

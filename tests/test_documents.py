@@ -78,3 +78,63 @@ def test_missing_python_docx_gives_dependency_error(tmp_path, monkeypatch):
         execute(ConversionRequest(SAMPLES / "notatka.txt", ".docx", tmp_path))
     assert "pip install -r requirements.txt" in error.value.hint
     assert list(tmp_path.iterdir()) == []
+
+
+def test_docx_to_txt_keeps_paragraph_order_and_polish_characters(tmp_path):
+    source = SAMPLES / "dokument.docx"
+
+    result = execute(ConversionRequest(source, ".txt", tmp_path))
+
+    assert result == tmp_path / "dokument.txt"
+    assert result.read_text(encoding="utf-8").splitlines() == paragraphs(source)
+    assert "Raport z konwersji – zażółć gęślą jaźń" in result.read_text(encoding="utf-8")
+
+
+def test_docx_to_txt_writes_tables_in_document_order(tmp_path):
+    source = tmp_path / "tabela.docx"
+    document = docx.Document()
+    document.add_paragraph("Przed tabelą")
+    table = document.add_table(rows=2, cols=2)
+    for row, values in zip(table.rows, [["imię", "miasto"], ["Łukasz", "Łódź"]]):
+        for cell, value in zip(row.cells, values):
+            cell.text = value
+    document.add_paragraph("Po tabeli")
+    document.save(source)
+
+    result = execute(ConversionRequest(source, ".txt", tmp_path))
+
+    assert result.read_text(encoding="utf-8").splitlines() == [
+        "Przed tabelą",
+        "imię\tmiasto",
+        "Łukasz\tŁódź",
+        "Po tabeli",
+    ]
+
+
+def test_txt_docx_txt_round_trip_gives_same_lines(tmp_path):
+    docx_dir, txt_dir = tmp_path / "docx", tmp_path / "txt"
+    docx_dir.mkdir()
+    txt_dir.mkdir()
+
+    docx_file = execute(ConversionRequest(SAMPLES / "notatka.txt", ".docx", docx_dir))
+    txt_file = execute(ConversionRequest(docx_file, ".txt", txt_dir))
+
+    original = (SAMPLES / "notatka.txt").read_text(encoding="utf-8").splitlines()
+    assert txt_file.read_text(encoding="utf-8").splitlines() == original
+
+
+@pytest.mark.parametrize(
+    "content",
+    [b"to nie jest dokument", None],
+    ids=["not-a-zip", "truncated-docx"],
+)
+def test_broken_docx_to_txt_gives_controlled_error_and_no_output(tmp_path, content):
+    source = SAMPLES / "uszkodzony.docx" if content is None else tmp_path / "zly.docx"
+    if content is not None:
+        source.write_bytes(content)
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    with pytest.raises(InvalidInputError, match="nie jest poprawnym dokumentem DOCX"):
+        execute(ConversionRequest(source, ".txt", output_dir))
+    assert list(output_dir.iterdir()) == []
