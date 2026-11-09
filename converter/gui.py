@@ -174,11 +174,17 @@ def ask_overwrite(parent: tk.Tk, target: Path) -> bool | None:
     dialog.title("Plik już istnieje")
     dialog.resizable(False, False)
     dialog.transient(parent)
-    answer: list[bool | None] = [None]
+    answer: bool | None = None  # closing the window = cancel
 
     def choose(value: bool | None) -> None:
-        answer[0] = value
+        nonlocal answer
+        answer = value
         dialog.destroy()
+
+    def press_focused_button(_event) -> None:
+        focused = dialog.focus_get()
+        if isinstance(focused, ttk.Button):
+            focused.invoke()
 
     frame = ttk.Frame(dialog, padding=16)
     frame.grid()
@@ -200,10 +206,10 @@ def ask_overwrite(parent: tk.Tk, target: Path) -> bool | None:
     y = parent.winfo_rooty() + (parent.winfo_height() - dialog.winfo_height()) // 2
     dialog.geometry(f"+{max(x, 0)}+{max(y, 0)}")
     new_button.focus_set()  # the safe choice is the default for Enter/Space
-    dialog.bind("<Return>", lambda _: getattr(dialog.focus_get(), "invoke", lambda: None)())
-    dialog.grab_set()
+    dialog.bind("<Return>", press_focused_button)
+    dialog.grab_set()  # modal: the main window ignores clicks until the dialog is closed
     parent.wait_window(dialog)
-    return answer[0]
+    return answer
 
 
 def run() -> None:
