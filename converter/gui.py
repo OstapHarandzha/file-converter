@@ -8,17 +8,61 @@ import threading
 import tkinter as tk
 from dataclasses import replace
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, font, messagebox, ttk
 
 from . import ConversionError, ConversionRequest, available_targets, execute, supported_pairs
 from .app_logging import LOG_FILE, setup_logging
 
 POLL_MS = 100
+HELP_TIPS = [
+    "Wskazówki:",
+    "• Pliki TXT, CSV i JSON muszą być zapisane w UTF-8.",
+    '• JSON: lista płaskich obiektów, np. [{"imię": "Anna", "wiek": 30}].',
+    "• Konwersje do PDF i ODT wymagają programu LibreOffice.",
+    "• Istniejący plik nie zostanie nadpisany bez pytania.",
+]
+
+
+def help_text() -> str:
+    """Tooltip text: supported pairs taken from the registry, so a new converter appears here automatically."""
+    pairs = supported_pairs()
+    lines = [f"Obsługiwane konwersje ({len(pairs)}):"]
+    lines += [f"   {source}  →  {target}" for source, target in pairs]
+    return "\n".join(lines + [""] + HELP_TIPS)
+
+
+class Tooltip:
+    """Small window with a text, shown while the mouse is over the widget."""
+
+    def __init__(self, widget: tk.Widget, text: str):
+        self.widget = widget
+        self.text = text
+        self.window: tk.Toplevel | None = None
+        widget.bind("<Enter>", self.show)
+        widget.bind("<Leave>", self.hide)
+
+    def show(self, _event=None) -> None:
+        if self.window is not None:
+            return
+        self.window = tk.Toplevel(self.widget)
+        self.window.wm_overrideredirect(True)  # no title bar or frame
+        x = self.widget.winfo_rootx() + self.widget.winfo_width() + 6
+        y = self.widget.winfo_rooty()
+        self.window.geometry(f"+{x}+{y}")
+        tk.Label(
+            self.window, text=self.text, justify="left", background="#ffffe8",
+            relief="solid", borderwidth=1, padx=10, pady=8,
+        ).pack()
+
+    def hide(self, _event=None) -> None:
+        if self.window is not None:
+            self.window.destroy()
+            self.window = None
 
 
 class ConverterApp(ttk.Frame):
     def __init__(self, root: tk.Tk):
-        super().__init__(root, padding=12)
+        super().__init__(root, padding=16)
         self.root = root
         self.source_var = tk.StringVar()
         self.output_var = tk.StringVar()
@@ -37,29 +81,38 @@ class ConverterApp(ttk.Frame):
         self.root.rowconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
 
-        ttk.Label(self, text="Plik wejściowy:").grid(row=0, column=0, sticky="w", pady=4)
+        ttk.Label(self, text="Plik wejściowy:").grid(row=0, column=0, sticky="w", pady=6)
         ttk.Entry(self, textvariable=self.source_var, state="readonly").grid(row=0, column=1, sticky="ew", padx=6)
         self.source_button = ttk.Button(self, text="Wybierz…", command=self._choose_source)
         self.source_button.grid(row=0, column=2)
 
-        ttk.Label(self, text="Katalog zapisu:").grid(row=1, column=0, sticky="w", pady=4)
+        ttk.Label(self, text="Katalog zapisu:").grid(row=1, column=0, sticky="w", pady=6)
         ttk.Entry(self, textvariable=self.output_var, state="readonly").grid(row=1, column=1, sticky="ew", padx=6)
         self.output_button = ttk.Button(self, text="Wybierz…", command=self._choose_output)
         self.output_button.grid(row=1, column=2)
 
-        ttk.Label(self, text="Format docelowy:").grid(row=2, column=0, sticky="w", pady=4)
-        self.format_box = ttk.Combobox(self, textvariable=self.format_var, state="disabled", width=12)
-        self.format_box.grid(row=2, column=1, sticky="w", padx=6)
+        ttk.Label(self, text="Format docelowy:").grid(row=2, column=0, sticky="w", pady=6)
+        format_row = ttk.Frame(self)
+        format_row.grid(row=2, column=1, sticky="w", padx=6)
+        self.format_box = ttk.Combobox(format_row, textvariable=self.format_var, state="disabled", width=12)
+        self.format_box.grid(row=0, column=0)
+        help_icon = tk.Label(
+            format_row, text=" ? ", relief="solid", borderwidth=1, foreground="#1a5fb4",
+            font=(font.nametofont("TkDefaultFont").actual("family"), 9, "bold"), cursor="question_arrow",
+        )
+        help_icon.grid(row=0, column=1, padx=(8, 0))
+        Tooltip(help_icon, help_text())
 
-        self.convert_button = ttk.Button(self, text="Konwertuj", command=self._convert)
-        self.convert_button.grid(row=3, column=0, columnspan=3, pady=(12, 6))
+        self.convert_button = ttk.Button(self, text="Konwertuj", command=self._convert, width=18)
+        self.convert_button.grid(row=3, column=0, columnspan=3, pady=(16, 10), ipady=3)
 
         self.progress = ttk.Progressbar(self, mode="indeterminate")
-        self.progress.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 6))
+        self.progress.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 8))
         self.progress.grid_remove()
 
-        ttk.Label(self, textvariable=self.status_var, wraplength=480, justify="left").grid(
-            row=5, column=0, columnspan=3, sticky="w"
+        ttk.Separator(self).grid(row=5, column=0, columnspan=3, sticky="ew", pady=(0, 8))
+        ttk.Label(self, textvariable=self.status_var, wraplength=540, justify="left").grid(
+            row=6, column=0, columnspan=3, sticky="w"
         )
 
     def _choose_source(self) -> None:
@@ -216,7 +269,9 @@ def run() -> None:
     setup_logging()
     root = tk.Tk()
     root.title("Konwerter plików")
-    root.minsize(560, 0)
+    root.minsize(600, 0)
+    for name in ("TkDefaultFont", "TkTextFont"):  # slightly larger text for readability
+        font.nametofont(name).configure(size=10)
     ConverterApp(root)
     root.mainloop()
 

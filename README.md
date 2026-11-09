@@ -44,7 +44,8 @@ python -m converter
 1. **Plik wejściowy → Wybierz…** – wskaż plik. Katalog zapisu ustawia się na katalog pliku (można go zmienić).
 2. **Format docelowy** – lista zawiera wyłącznie formaty dostępne dla rozszerzenia pliku (pobierane
    z rejestru konwerterów). Dla nieobsługiwanego pliku lista jest pusta i zablokowana, a status podaje
-   obsługiwane rozszerzenia.
+   obsługiwane rozszerzenia. Ikona **?** obok listy (po najechaniu myszą) pokazuje wszystkie
+   obsługiwane konwersje i najważniejsze wskazówki.
 3. **Konwertuj** – przycisk jest aktywny tylko przy kompletnym i dozwolonym wyborze. Konwersja działa
    w wątku roboczym: okno nie zamarza, przyciski są zablokowane, widoczny jest pasek postępu.
 4. Wynik: okno z komunikatem i ścieżką pliku albo okno błędu z przyczyną i dalszym krokiem.
@@ -150,8 +151,9 @@ Wynik jest zapisywany do pliku tymczasowego i podmieniany dopiero po udanej konw
 python -m pytest -v
 ```
 
-Wynik: 55 testów automatycznych przechodzi. Bez zainstalowanego LibreOffice 3 testy z prawdziwym
+Wynik: 56 testów automatycznych przechodzi. Bez zainstalowanego LibreOffice 3 testy z prawdziwym
 LibreOffice są pomijane (`skipped`); pozostałe testy LibreOffice używają atrapy programu i działają zawsze.
+Test podpowiedzi GUI jest pomijany, jeśli Python nie ma modułu Tkinter.
 
 Dane przykładowe i oczekiwane wyniki: [samples/README.md](samples/README.md).
 
@@ -161,6 +163,7 @@ Dane przykładowe i oczekiwane wyniki: [samples/README.md](samples/README.md).
 |---|---|---|
 | Poprawna konwersja | `samples/osoby.csv` → `.json` → Konwertuj | Komunikat „Konwersja zakończona” ze ścieżką; plik otwiera się z polskimi znakami |
 | Formaty zależne od pliku | Wybierz `samples/dokument.docx` | Lista formatów: `.odt`, `.pdf`, `.txt`; przycisk aktywny dopiero po wyborze formatu |
+| Pomoc | Najedź myszą na ikonę **?** obok listy formatów | Podpowiedź z listą 6 obsługiwanych konwersji i wskazówkami; znika po odsunięciu myszy |
 | Nieobsługiwana para | Wybierz plik `.pdf` lub `.png` | Lista formatów pusta i zablokowana, przycisk nieaktywny, status z listą obsługiwanych rozszerzeń |
 | Plik już istnieje | Powtórz konwersję do tego samego katalogu | Pytanie „Czy chcesz go nadpisać?”: Tak, nadpisz / Nie, zapisz nowy plik (`nazwa (1).ext`) / Anuluj (brak zmian) |
 | Uszkodzony plik | `samples/uszkodzony.json` → `.csv` | Okno błędu z przyczyną (wiersz, kolumna) i podpowiedzią; aplikacja działa dalej |
@@ -175,7 +178,7 @@ converter/
   data.py         # grupa A: CSV <-> JSON
   documents.py    # grupa B: TXT <-> DOCX (python-docx)
   office.py       # grupa C: DOCX -> PDF, DOCX -> ODT przez LibreOffice (subprocess)
-  gui.py          # interfejs Tkinter/ttk (tylko wybór i wywołanie rejestru, wątek roboczy)
+  gui.py          # interfejs Tkinter/ttk (wybór, wywołanie rejestru w wątku roboczym, podpowiedź „?”)
   __main__.py     # start: bez argumentów GUI, z argumentami tryb wiersza poleceń
   app_logging.py  # logowanie do converter.log
 samples/          # dane testowe
