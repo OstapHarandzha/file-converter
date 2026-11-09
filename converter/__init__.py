@@ -4,7 +4,7 @@ Importing this package registers all available converters.
 """
 from . import data  # noqa: F401  (registers CSV <-> JSON)
 from . import documents  # noqa: F401  (registers TXT <-> DOCX)
-from . import office  # noqa: F401  (registers DOCX -> PDF via LibreOffice)
+from . import office  # noqa: F401  (registers DOCX -> PDF, DOCX -> ODT via LibreOffice)
 from .registry import (
     REGISTRY,
     ConversionError,

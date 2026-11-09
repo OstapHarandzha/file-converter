@@ -1,4 +1,5 @@
-"""Group C - office formats converted by LibreOffice in headless mode: DOCX -> PDF.
+"""Group C - office formats converted by LibreOffice in headless mode:
+DOCX -> PDF, DOCX -> ODT.
 
 LibreOffice is an external program, so it is called safely:
 * the command is a list of arguments (never shell=True) with a time limit;
@@ -104,4 +105,9 @@ def run_libreoffice(source: Path, target: Path) -> None:
 
 @converter(".docx", ".pdf")
 def docx_to_pdf(source: Path, target: Path) -> None:
+    run_libreoffice(source, target)
+
+
+@converter(".docx", ".odt")
+def docx_to_odt(source: Path, target: Path) -> None:
     run_libreoffice(source, target)

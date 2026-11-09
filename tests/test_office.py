@@ -1,4 +1,5 @@
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -34,29 +35,37 @@ def fake_libreoffice(tmp_path, monkeypatch):
             raise behaviour["raises"]
         if behaviour["creates_output"]:
             outdir = Path(command[command.index("--outdir") + 1])
-            (outdir / f"{Path(command[-1]).stem}.pdf").write_bytes(b"%PDF-fake")
+            extension = command[command.index("--convert-to") + 1]
+            (outdir / f"{Path(command[-1]).stem}.{extension}").write_bytes(b"fake output")
         return subprocess.CompletedProcess(command, behaviour["returncode"], stdout="", stderr="tool message")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     return calls, behaviour
 
 
-def test_libreoffice_is_called_safely_with_argument_list_and_timeout(tmp_path, fake_libreoffice):
+@pytest.mark.parametrize(
+    "source, target_format",
+    [("dokument.docx", ".pdf"), ("dokument.docx", ".odt")],
+    ids=["docx-pdf", "docx-odt"],
+)
+def test_libreoffice_is_called_safely_with_argument_list_and_timeout(
+    tmp_path, fake_libreoffice, source, target_format
+):
     calls, _ = fake_libreoffice
     output_dir = tmp_path / "output"
     output_dir.mkdir()
 
-    result = execute(ConversionRequest(SAMPLES / "dokument.docx", ".pdf", output_dir))
+    result = execute(ConversionRequest(SAMPLES / source, target_format, output_dir))
 
     command, kwargs = calls[0]
     assert isinstance(command, list)
     assert command[0].endswith("soffice.com")
-    assert ["--convert-to", "pdf"] == command[command.index("--convert-to"):][:2]
+    assert ["--convert-to", target_format[1:]] == command[command.index("--convert-to"):][:2]
     assert "--headless" in command
     assert kwargs.get("shell", False) is False
     assert kwargs["timeout"] == office.TIMEOUT_SECONDS
-    assert result == output_dir / "dokument.pdf"
-    assert result.read_bytes() == b"%PDF-fake"
+    assert result == output_dir / f"{Path(source).stem}{target_format}"
+    assert result.read_bytes() == b"fake output"
 
 
 @pytest.mark.parametrize(
@@ -123,3 +132,13 @@ def test_real_broken_docx_gives_controlled_error(tmp_path):
     with pytest.raises(ConversionError, match="LibreOffice"):
         execute(ConversionRequest(SAMPLES / "uszkodzony.docx", ".pdf", tmp_path))
     assert list(tmp_path.iterdir()) == []
+
+
+@needs_libreoffice
+def test_real_docx_to_odt_keeps_text(tmp_path):
+    result = execute(ConversionRequest(SAMPLES / "dokument.docx", ".odt", tmp_path))
+
+    assert zipfile.is_zipfile(result)
+    with zipfile.ZipFile(result) as archive:
+        assert archive.read("mimetype") == b"application/vnd.oasis.opendocument.text"
+        assert "Łódź, Kraków, Gdańsk" in archive.read("content.xml").decode("utf-8")
